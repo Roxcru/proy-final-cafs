@@ -22,15 +22,15 @@ pipeline {
             }
         }
 
-        stage('Instalar dependencias') {
+        stage('Instalar dependencias y pruebas') {
             steps {
-                sh 'npm ci'
-            }
-        }
-
-        stage('Pruebas') {
-            steps {
-                sh 'npm test --if-present'
+                sh '''
+                    docker run --rm \
+                    -v "$PWD:/app" \
+                    -w /app \
+                    node:20-alpine \
+                    sh -c "npm ci && npm test --if-present"
+                '''
             }
         }
 
