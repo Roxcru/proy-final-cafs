@@ -1,21 +1,67 @@
+@Library('cafs-shared-library') _
+
 pipeline {
-    agent {
-        docker {
-            image 'node:20-alpine'
-        }
+
+    agent any
+
+    options {
+        skipDefaultCheckout(true)
+        timestamps()
+    }
+
+    environment {
+        IMAGE_NAME = 'roxcruxx/img_final_cafs'
+        IMAGE_TAG  = "${BUILD_NUMBER}"
     }
 
     stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
         stage('Instalar dependencias') {
             steps {
                 sh 'npm ci'
             }
         }
 
-        stage('Validar código') {
+        stage('Pruebas') {
             steps {
-                sh 'node --check index.js'
+                sh 'npm test --if-present'
             }
+        }
+
+        stage('Docker Build & Push') {
+            steps {
+                dockerBuildAndPush(
+                    image: env.IMAGE_NAME,
+                    tag: env.IMAGE_TAG
+                )
+            }
+        }
+
+        stage('Deploy Kubernetes') {
+            steps {
+                deployKubernetes(
+                    image: "${env.IMAGE_NAME}:${env.IMAGE_TAG}",
+                    namespace: 'proy-final-cafs',
+                    deployment: 'backend',
+                    container: 'backend'
+                )
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'PIPELINE FINALIZADO CORRECTAMENTE'
+        }
+
+        failure {
+            echo 'PIPELINE CON ERRORES'
         }
     }
 }
