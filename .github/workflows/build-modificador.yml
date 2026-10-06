@@ -1,0 +1,118 @@
+name: Build Modificador
+
+on:
+  workflow_dispatch:
+    inputs:
+      recurso:
+        description: "Recurso de Kubernetes"
+        required: true
+        default: "backend"
+        type: choice
+        options:
+          - backend
+
+      driver:
+        description: "Driver de base de datos"
+        required: true
+        default: "mysql"
+        type: choice
+        options:
+          - mysql
+          - postgres
+          - mongo
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Verificar sintaxis
+        run: node --check index.js
+
+      - name: Configurar kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: latest
+
+      - name: Configurar acceso a Kubernetes
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          mkdir -p ~/.kube
+          echo "$KUBE_CONFIG" > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Cambiar driver en Kubernetes
+        env:
+          RECURSO: ${{ inputs.recurso }}
+          DRIVER: ${{ inputs.driver }}
+        run: |
+          if [ "$RECURSO" != "backend" ]; then
+            echo "Recurso no permitido: $RECURSO"
+            exit 1
+          fi
+
+          case "$DRIVER" in
+            mysql)
+              DB_HOST="mysql"
+              DB_PORT="3306"
+              DB_NAME="mydb"
+              ;;
+            postgres)
+              DB_HOST="postgres"
+              DB_PORT="5432"
+              DB_NAME="mydb"
+              ;;
+            mongo)
+              DB_HOST="mongo"
+              DB_PORT="27017"
+              DB_NAME="database"
+              ;;
+            *)
+              echo "Driver no permitido: $DRIVER"
+              exit 1
+              ;;
+          esac
+
+          kubectl create configmap backend-config \
+            --namespace proy-final-cafs \
+            --from-literal=DB_HOST="$DB_HOST" \
+            --from-literal=DB_NAME="$DB_NAME" \
+            --from-literal=DB_PORT="$DB_PORT" \
+            --from-literal=DB_USER_NAME=root \
+            --from-literal=MY_DATABASE_DRIVER="$DRIVER" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Reiniciar backend
+        env:
+          RECURSO: ${{ inputs.recurso }}
+        run: |
+          kubectl rollout restart deployment/"$RECURSO" \
+            --namespace proy-final-cafs
+
+      - name: Esperar despliegue
+        env:
+          RECURSO: ${{ inputs.recurso }}
+        run: |
+          kubectl rollout status deployment/"$RECURSO" \
+            --namespace proy-final-cafs \
+            --timeout=180s
+
+      - name: Verificar configuración
+        env:
+          RECURSO: ${{ inputs.recurso }}
+        run: |
+          kubectl exec deployment/"$RECURSO" \
+            --namespace proy-final-cafs \
+            -- env | grep -E 'MY_DATABASE_DRIVER|DB_HOST|DB_NAME|DB_PORT'
