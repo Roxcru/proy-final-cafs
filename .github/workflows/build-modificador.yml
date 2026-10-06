@@ -54,6 +54,16 @@ jobs:
           chmod 600 ~/.kube/config
 
           kubectl config current-context
+          
+      - name: Validar kubeconfig
+        env:
+          KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          echo "$KUBE_CONFIG_B64" | base64 --decode > /tmp/kubeconfig
+          echo "Primeros bytes del kubeconfig:"
+          head -c 30 /tmp/kubeconfig | xxd
+          echo "Validando kubeconfig:"
+          kubectl --kubeconfig=/tmp/kubeconfig config current-context
 
       - name: Cambiar driver en Kubernetes
         env:
