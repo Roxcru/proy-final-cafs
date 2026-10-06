@@ -50,10 +50,9 @@ jobs:
           KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG }}
         run: |
           mkdir -p ~/.kube
-          echo "$KUBE_CONFIG_B64" | base64 --decode > ~/.kube/config
+          echo -n "$KUBE_CONFIG_B64" | base64 --decode > ~/.kube/config
           chmod 600 ~/.kube/config
 
-          kubectl config current-context
       - name: Diagnosticar kubeconfig
         env:
           KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG }}
@@ -73,16 +72,6 @@ jobs:
           echo "Primeras líneas:"
           head -n 5 /tmp/kubeconfig
 
-          echo "Validando kubeconfig:"
-          kubectl --kubeconfig=/tmp/kubeconfig config current-context
-
-      - name: Validar kubeconfig
-        env:
-          KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG }}
-        run: |
-          echo "$KUBE_CONFIG_B64" | base64 --decode > /tmp/kubeconfig
-          echo "Primeros bytes del kubeconfig:"
-          head -c 30 /tmp/kubeconfig | xxd
           echo "Validando kubeconfig:"
           kubectl --kubeconfig=/tmp/kubeconfig config current-context
 
