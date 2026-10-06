@@ -1,0 +1,76 @@
+#cloud-config
+
+package_update: true
+
+write_files:
+  - path: /opt/jenkins/Dockerfile
+    permissions: "0644"
+    content: |
+      FROM jenkins/jenkins:lts-jdk21
+
+      USER root
+
+      RUN apt-get update \
+          && apt-get install -y \
+              ca-certificates \
+              curl \
+              gnupg \
+              git \
+          && install -m 0755 -d /etc/apt/keyrings \
+          && curl -fsSL https://download.docker.com/linux/debian/gpg \
+              -o /etc/apt/keyrings/docker.asc \
+          && chmod a+r /etc/apt/keyrings/docker.asc \
+          && echo \
+              "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
+              $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+              > /etc/apt/sources.list.d/docker.list \
+          && apt-get update \
+          && apt-get install -y docker-ce-cli \
+          && rm -rf /var/lib/apt/lists/*
+
+      RUN curl -LO "https://dl.k8s.io/release/v1.36.3/bin/linux/amd64/kubectl" \
+          && install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl \
+          && rm kubectl
+
+      USER root
+
+  - path: /opt/jenkins/docker-compose.yml
+    permissions: "0644"
+    content: |
+      services:
+        jenkins:
+          build:
+            context: /opt/jenkins
+            dockerfile: Dockerfile
+
+          container_name: jenkins
+
+          user: root
+
+          restart: unless-stopped
+
+          ports:
+            - "8080:8080"
+            - "50000:50000"
+
+          volumes:
+            - jenkins_home:/var/jenkins_home
+            - /var/run/docker.sock:/var/run/docker.sock
+
+      volumes:
+        jenkins_home:
+
+runcmd:
+  - apt-get update
+  - apt-get install -y ca-certificates curl gnupg
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - sh -c 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list'
+  - apt-get update
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  - systemctl enable docker
+  - systemctl start docker
+  - docker --version
+  - docker compose version
+  - cd /opt/jenkins && docker compose up -d --build

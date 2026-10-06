@@ -26,8 +26,8 @@ pipeline {
             steps {
                 sh '''
                     docker run --rm \
-                    -v "$PWD:/app" \
-                    -w /app \
+                    -v jenkins_jenkins_home:/var/jenkins_home \
+                    -w "$WORKSPACE" \
                     node:20-alpine \
                     sh -c "npm ci && npm test --if-present"
                 '''
