@@ -1,0 +1,50 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: test-s3
+  namespace: proy-final-cafs
+
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+
+      containers:
+        - name: aws-test
+          image: amazon/aws-cli:latest
+
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Probando identidad AWS..."
+              aws sts get-caller-identity
+
+              echo "Creando archivo de prueba..."
+              echo "Prueba de Kubernetes + AWS S3" > /tmp/test-s3.txt
+
+              echo "Subiendo archivo..."
+              aws s3 cp \
+                /tmp/test-s3.txt \
+                s3://bucket-codigo-backup-final-proyect/flores/database/test-s3.txt
+
+              echo "UPLOAD CORRECTO"
+
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-backup-secret
+                  key: AWS_ACCESS_KEY_ID
+
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-backup-secret
+                  key: AWS_SECRET_ACCESS_KEY
+
+            - name: AWS_DEFAULT_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: aws-backup-secret
+                  key: AWS_DEFAULT_REGION

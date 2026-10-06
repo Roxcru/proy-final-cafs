@@ -1,0 +1,87 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: db-backup
+  namespace: proy-final-cafs
+
+spec:
+  schedule: "0 */3 * * *"
+  timeZone: "America/Lima"
+
+  concurrencyPolicy: Forbid
+
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+
+          containers:
+            - name: db-backup
+              image: roxcruxx/db-backup-cafs:latest
+              imagePullPolicy: Always
+
+              env:
+
+                # MySQL
+                - name: DB_HOST
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backend-config
+                      key: DB_HOST
+
+                - name: DB_PORT
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backend-config
+                      key: DB_PORT
+
+                - name: DB_USER
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backend-config
+                      key: DB_USER_NAME
+
+                - name: DB_NAME
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backend-config
+                      key: DB_NAME
+
+                - name: DB_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: db-secret
+                      key: DB_PASSWORD
+
+                # AWS
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: aws-backup-secret
+                      key: AWS_ACCESS_KEY_ID
+
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: aws-backup-secret
+                      key: AWS_SECRET_ACCESS_KEY
+
+                - name: AWS_DEFAULT_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      name: aws-backup-secret
+                      key: AWS_DEFAULT_REGION
+
+                # S3
+                - name: S3_BUCKET
+                  value: "bucket-codigo-backup-final-proyect"
+
+                - name: S3_PREFIX
+                  value: "flores/database"
+
+                - name: BACKUP_TIMEZONE
+                  value: "America/Lima"
