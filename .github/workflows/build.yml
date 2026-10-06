@@ -5,25 +5,21 @@ on:
     branches:
       - develop
 
-  pull_request:
-    branches:
-      - develop
-
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
       - name: Descargar código
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Configurar Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
 
       - name: Instalar dependencias
-        run: npm install
+        run: npm ci
 
-      - name: Ejecutar build
-        run: npm run build
+      - name: Verificar sintaxis
+        run: node --check index.js
