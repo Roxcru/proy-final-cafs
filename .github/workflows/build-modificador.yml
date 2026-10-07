@@ -49,31 +49,17 @@ jobs:
         env:
           KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG }}
         run: |
-          mkdir -p ~/.kube
-          echo -n "$KUBE_CONFIG_B64" | base64 --decode > ~/.kube/config
-          chmod 600 ~/.kube/config
-
-      - name: Diagnosticar kubeconfig
-        env:
-          KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG }}
-        run: |
-          echo "Longitud del secret:"
-          echo -n "$KUBE_CONFIG_B64" | wc -c
-
-          echo "Primeros caracteres del secret:"
-          echo -n "$KUBE_CONFIG_B64" | cut -c1-20
-
-          echo "Decodificando..."
           echo -n "$KUBE_CONFIG_B64" | base64 --decode > /tmp/kubeconfig
+          chmod 600 /tmp/kubeconfig
+          echo "KUBECONFIG=/tmp/kubeconfig" >> "$GITHUB_ENV"
 
-          echo "Primeros bytes del archivo decodificado:"
-          head -c 30 /tmp/kubeconfig | xxd
+      - name: Validar acceso a Kubernetes
+        run: |
+          echo "Contexto actual:"
+          kubectl config current-context
 
-          echo "Primeras líneas:"
-          head -n 5 /tmp/kubeconfig
-
-          echo "Validando kubeconfig:"
-          kubectl --kubeconfig=/tmp/kubeconfig config current-context
+          echo "Cluster:"
+          kubectl cluster-info
 
       - name: Cambiar driver en Kubernetes
         env:
@@ -106,6 +92,12 @@ jobs:
               exit 1
               ;;
           esac
+
+          echo "Recurso: $RECURSO"
+          echo "Driver: $DRIVER"
+          echo "DB_HOST: $DB_HOST"
+          echo "DB_PORT: $DB_PORT"
+          echo "DB_NAME: $DB_NAME"
 
           kubectl create configmap backend-config \
             --namespace proy-final-cafs \
